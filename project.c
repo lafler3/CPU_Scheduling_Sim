@@ -4,12 +4,30 @@
 #include <unistd.h>
 #include <string.h>
 #include <ctype.h>
+#include <math.h>
+
 #include <sys/types.h>
 #include <sys/wait.h>
 #include <sys/stat.h>
 
 int next_exp(){
 	//had to restart
+}
+
+void FCFS(){
+
+}
+
+void SJF(){
+
+}
+
+void SRT(){
+
+}
+
+void RR(){
+
 }
 
 int main(int argc, char * argv[]){
@@ -21,6 +39,13 @@ int main(int argc, char * argv[]){
 	double alphC = argv[6];
 	int timeSlice = argv[7];
 
-
+	srand(seedR);
+	FCFS();
+	srand(seedR);
+	SJF();
+	srand(seedR);
+	SRT();
+	srand(seedR);
+	RR();
 
 }
