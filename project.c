@@ -20,9 +20,10 @@ int *** next_exp(double lambda, int simN, int threshED){
 		}
 		int burstN = ceil(drand48()*100);
 		int** tArray = calloc(3, sizeof(int*));
-		int* aBD = calloc(2, sizeof(int));
+		int* aBD = calloc(3, sizeof(int));
 		*(aBD + 0) = aT;
 		*(aBD + 1) = burstN;
+		*(aBD + 2) = 0;
 		int* tCPU = calloc(burstN, sizeof(int));
 		int* tIO = calloc((burstN-1), sizeof(int));
 		int cTr = 0;
@@ -47,6 +48,7 @@ int *** next_exp(double lambda, int simN, int threshED){
 next_exp index: data[][][]
 data[] determines which process: data[0] = A, data[25] = Z
 data[][] determines data type: data[][0] = arrival time and cpu busts IN THAT ORDER,
+Third thing is to track which cpu processes are done
 data[][1] = CPU burst times IN ORDER, data[][2] = I/O add times IN ORDER
 data[][][] refers to each indivisual value
 */
