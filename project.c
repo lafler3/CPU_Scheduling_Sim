@@ -268,8 +268,9 @@ int main(int argc, char * argv[]){
 
 	srand(seedR);
 	//FCFS
-	int*** FCFSD = next_exp(0.01, 1, 256);
+	int*** FCFSD = next_exp(lambda, simN, threshED);
 	printHeader(FCFSD, simN, lambda);
+	
 	freeData(FCFSD, simN);
 	srand(seedR);
 	//SJF;
