@@ -10,6 +10,23 @@
 #include <sys/wait.h>
 #include <sys/stat.h>
 
+typedef struct{
+	int wait;
+	int turnaround;
+
+	int ID;
+	int arrivalTime;
+	int burstN;
+
+	int procNum = 0;
+	int IONum = 0;
+	int* process;
+	int* IO;
+
+	int suspended;
+}
+queue_item;
+
 int *** next_exp(double lambda, int simN, int threshED){
 	int*** data = calloc(simN, sizeof(int**));
 	for(int i = 0; i<simN; i++){
