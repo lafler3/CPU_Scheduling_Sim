@@ -52,8 +52,8 @@ int*** deepCopy(int*** arr, int simN){
 	for (int i = 0; i < simN; ++i)
 	{
 		int* aBDC = calloc(3, sizeof(int));
-
-		burstN = arr[i][0][1];
+		int temp = arr[i][0][1];
+		burstN = temp;
 		aT = arr[i][0][0];
 		
 		*(aBDC + 0) = aT;
@@ -99,6 +99,17 @@ void printData(int*** data, int simN){
 			printf(" %d\n", data[i][2][b]);
 		}
 	}
+}
+
+void freeData(int*** data, int simN){
+	for (int i = 0; i < simN; ++i)
+	{
+		free(data[i][0]);
+		free(data[i][1]);
+		free(data[i][2]);
+		free(data[i]);
+	}
+	free(data);
 }
 
 void printDataCompare(int*** data1, int*** data2, int simN){
@@ -156,19 +167,23 @@ int main(int argc, char * argv[]){
 	srand(seedR);
 	//FCFS
 	int*** FCFSD = next_exp(lambda, simN, threshED);
-
+	freeData(FCFSD, simN);
 	srand(seedR);
 	//SJF;
 	int*** SJFD = next_exp(lambda, simN, threshED);
 	int*** copy = deepCopy(SJFD,simN);
+	freeData(SJFD, simN);
+	freeData(copy, simN);
 
 	srand(seedR);
 	//SRT;
 	int*** SRTD = next_exp(lambda, simN, threshED);
+	freeData(SRTD, simN);
 
 	srand(seedR);
 	//RR;
 	int*** RRD = next_exp(lambda, simN, threshED);
+	freeData(RRD, simN);
 
 	return 0;
 }
