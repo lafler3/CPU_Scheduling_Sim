@@ -10,6 +10,15 @@
 #include <sys/wait.h>
 #include <sys/stat.h>
 
+int next_exps(double lambda, int threshED){
+	int aT = threshED+1;
+	while(aT > threshED){
+		double r = drand48();
+		aT=floor(-log(r)/lambda);
+	}
+	return aT;
+}
+
 int *** next_exp(double lambda, int simN, int threshED){
 	int*** data = calloc(simN, sizeof(int**));
 	for(int i = 0; i<simN; i++){
@@ -30,10 +39,10 @@ int *** next_exp(double lambda, int simN, int threshED){
 		int iTr = 0;
 		for(int j = 0; j<(burstN+burstN-1); j++){
 				if(j%2 == 0){
-					*(tCPU + cTr) = ceil(drand48()*100);
+					*(tCPU + cTr) = (next_exp(lambda, threshED)+1);
 					cTr++;
 				}else{
-					*(tIO + iTr) = ceil(drand48()*100*10);
+					*(tIO + iTr) = (next_exp(lambda, threshED)*10)+12;
 					iTr++;
 				}
 		}
