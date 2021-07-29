@@ -18,9 +18,9 @@ typedef struct{
 	int arrivalTime;
 	int burstN;
 
-	int procNum = 0;
-	int IONum = 0;
-	int* process;
+	int procNum;
+	int IONum;
+	int* burst;
 	int* IO;
 
 	int suspended;
@@ -160,11 +160,69 @@ int avg(double total, double processes){
 	return ret;
 }
 
-void sjf(int*** data, double conSwitch, double alphC){
+void sortbyArrival(queue_item** hiddenQueue, int simN){
+	queue_item* temp;
+	queue_item* temp2;
+	for (int i = 0; i < simN; ++i)
+	{
+		int min = 99999;
+		int minIn = 999999;
+		for (int b = i; b < simN; ++b)
+		{
+			if ((*hiddenQueue[b]).arrivalTime < min)
+			{
+				min = (*hiddenQueue[b]).arrivalTime;
+				minIn = b;
+			}
+		}
+		temp = hiddenQueue[minIn];
+		temp2 = hiddenQueue[i];
+		hiddenQueue[minIn] = temp2;
+		hiddenQueue[i] = temp;
+	}
+}
+
+queue_item** createQueue(int*** data, int simN){
+	queue_item** hiddenQueue = calloc(simN, sizeof(queue_item*));
+	for (int i = 0; i < simN; ++i)
+	 {
+	 	queue_item* item = malloc(sizeof(queue_item));
+	 	(*item).procNum = 0;
+	 	(*item).wait = 0;
+	 	(*item).IONum = 0;
+
+		(*item).ID = i;
+		(*item).arrivalTime = data[i][0][0];
+		(*item).burstN = data[i][0][1];
+
+		(*item).burst = data[i][1];
+		(*item).IO = data[i][2];
+
+	 	hiddenQueue[i] = item;
+	 } 
+
+	 return hiddenQueue;
+}
+
+void freeQueue(queue_item** queue, int simN){
+	for (int i = 0; i < simN; ++i)
+	{
+		free(queue[i]);
+	}
+	free(queue);
+}
+
+void sjf(int*** data, double conSwitch, double alphC, int simN){
 	double total = ceil(1/alphC);
 	double processes = 1;
 	int tau = avg(total, processes);
+	int queueSize = 0;
 
+	queue_item** hiddenQueue = createQueue(data, simN);
+	sortbyArrival(hiddenQueue, simN);
+
+
+	freeQueue(hiddenQueue, simN);
 }
 
 
@@ -196,7 +254,7 @@ int main(int argc, char * argv[]){
 	srand(seedR);
 	//SJF;
 	int*** SJFD = next_exp(lambda, simN, threshED);
-	sjf(SJFD, conSwitch, alphC);
+	sjf(SJFD, conSwitch, alphC, simN);
 	freeData(SJFD, simN);
 	
 
