@@ -212,18 +212,30 @@ void freeQueue(queue_item** queue, int simN){
 	free(queue);
 }
 
+void printHeader(int*** data, int simN, double lambda ){
+	int tau = ceil(1/lambda);
+	for (int i = 0; i < simN; ++i)
+	{
+		printf("Process %c (arrival time %d ms) %d CPU bursts (tau %dms)\n", getProcessName(i), data[i][0][0], data[i][0][1], tau);
+	}
+}
+
 void sjf(int*** data, double conSwitch, double alphC, int simN){
 	double total = ceil(1/alphC);
 	double processes = 1;
 	int tau = avg(total, processes);
+	
 	int queueSize = 0;
+	queue_item** Queue = calloc(simN, sizeof(queue_item));
 
 	queue_item** hiddenQueue = createQueue(data, simN);
 	sortbyArrival(hiddenQueue, simN);
 
 
 	freeQueue(hiddenQueue, simN);
+	freeQueue(Queue, simN);
 }
+
 
 
 
@@ -246,10 +258,18 @@ int main(int argc, char * argv[]){
 	double alphC = strtod(argv[6], NULL);
 	int timeSlice = atoi(argv[7]);
 
+	printf("%i\n", simN);
+	printf("%i\n", seedR);
+	printf("%f\n", lambda);
+	printf("%i\n", threshED);
+	printf("%i\n", conSwitch);
+	printf("%f\n", alphC);
+	printf("%i\n", timeSlice);
 
 	srand(seedR);
 	//FCFS
-	int*** FCFSD = next_exp(lambda, simN, threshED);
+	int*** FCFSD = next_exp(0.01, 1, 256);
+	printHeader(FCFSD, simN, lambda);
 	freeData(FCFSD, simN);
 	srand(seedR);
 	//SJF;
