@@ -132,6 +132,12 @@ void printDataCompare(int*** data1, int*** data2, int simN){
 	}
 }
 
+char getProcessName(int process){
+	char ALPHABET[27] = "ABCDEFGHIJKLMNOPQRSTUVWXYZ\0";
+	char ret = ALPHABET[process];
+	return ret;
+}
+
 int avg(double total, double processes){
 	int ret = ceil(total/processes);
 	return ret;
@@ -154,6 +160,8 @@ Third thing is to track which cpu processes are done
 data[][1] = CPU burst times IN ORDER, data[][2] = I/O add times IN ORDER
 data[][][] refers to each indivisual value
 */
+
+
 int main(int argc, char * argv[]){
 	int simN = atoi(argv[1]);
 	int seedR = atoi(argv[2]);
@@ -171,9 +179,9 @@ int main(int argc, char * argv[]){
 	srand(seedR);
 	//SJF;
 	int*** SJFD = next_exp(lambda, simN, threshED);
-	int*** copy = deepCopy(SJFD,simN);
+	sjf(SJFD, conSwitch, alphC);
 	freeData(SJFD, simN);
-	freeData(copy, simN);
+	
 
 	srand(seedR);
 	//SRT;
