@@ -5,6 +5,7 @@
 #include <string.h>
 #include <ctype.h>
 #include <math.h>
+#include <limits.h>
 
 #include <sys/types.h>
 #include <sys/wait.h>
@@ -18,12 +19,16 @@ typedef struct{
 	int ID;
 	int arrivalTime;
 	int burstN;
+	int tau;
+	int prevActual;
 
 	int procNum;
 	int IONum;
 	int* burst;
 	int* IO;
 
+	int ioEndTime;
+	int burstEndTime;
 	int suspended;
 }
 queue_item;
@@ -33,7 +38,7 @@ int next_exps(double lambda, int threshED){
 	int aT = threshED+1;
 	while(aT > threshED){
 		double r = drand48();
-		aT=floor(-log(r)/lambda);
+		aT=ceil(-log(r)/lambda);
 	}
 	return aT;
 }
@@ -59,10 +64,10 @@ int *** next_exp(double lambda, int simN, int threshED){
 		int iTr = 0;
 		for(int j = 0; j<(burstN+burstN-1); j++){
 				if(j%2 == 0){
-					*(tCPU + cTr) = (next_exps(lambda, threshED)+1);
+					*(tCPU + cTr) = (next_exps(lambda, threshED));
 					cTr++;
 				}else{
-					*(tIO + iTr) = (next_exps(lambda, threshED)*10)+12;
+					*(tIO + iTr) = (next_exps(lambda, threshED)*10 + 2);
 					iTr++;
 				}
 		}
@@ -168,8 +173,8 @@ char getProcessName(int process){
 	return ret;
 }
 
-int avg(double total, double processes){
-	int ret = ceil(total/processes);
+int computeTau(int preTau, int actual, double alphC){
+	int ret = ceil((preTau * (1-alphC)) + (alphC * actual));
 	return ret;
 }
 
@@ -178,8 +183,8 @@ void sortbyArrival(queue_item** hiddenQueue, int simN){
 	queue_item* temp2;
 	for (int i = 0; i < simN; ++i)
 	{
-		int min = 99999;
-		int minIn = 999999;
+		int min = INT_MAX;
+		int minIn = INT_MAX;
 		for (int b = i; b < simN; ++b)
 		{
 			if ((*hiddenQueue[b]).arrivalTime < min)
@@ -194,29 +199,19 @@ void sortbyArrival(queue_item** hiddenQueue, int simN){
 		hiddenQueue[i] = temp;
 	}
 }
-/*
-queue_item* copyQueueItem(queue_item* orginal){
-	queue_item* newQueue = malloc(sizeof(queue_item));
- 	(*newQueue).procNum = 0;
- 	(*newQueue).wait = 0;
- 	(*newQueue).IONum = 0;
 
-	(*newQueue).ID = i;
-	(*newQueue).arrivalTime = data[i][0][0];
-	(*newQueue).burstN = data[i][0][1];
-
-	(*newQueue).burst = data[i][1];
-	(*newQueue).IO = data[i][2];
-}*/
-
-queue_item** createQueue(int*** data, int simN){
+queue_item** createQueue(int*** data, int simN, int tau){
 	queue_item** hiddenQueue = calloc(simN, sizeof(queue_item*));
 	for (int i = 0; i < simN; ++i)
 	 {
 	 	queue_item* item = malloc(sizeof(queue_item));
-	 	(*item).procNum = 0;
 	 	(*item).wait = 0;
+
+	 	(*item).procNum = 0;
 	 	(*item).IONum = 0;
+	 	(*item).ioEndTime = -1;
+	 	(*item).burstEndTime = -1;
+	 	(*item).tau = tau;
 
 		(*item).ID = i;
 		(*item).arrivalTime = data[i][0][0];
@@ -248,6 +243,11 @@ void printHeader(int*** data, int simN, double lambda ){
 }
 
 void printQueue(queue_item** Queue, int queueSize){
+	if (queueSize == 0)
+	{
+		printf(" empty]\n");
+		return;
+	}
 	for (int i = 0; i < queueSize; ++i)
 	{
 		printf(" %c", getProcessName((*Queue[i]).ID));
@@ -266,13 +266,13 @@ void sortQueueSJF(queue_item** Queue, int queueSize){
 	queue_item* temp2;
 	for (int i = 0; i < queueSize; ++i)
 	{
-		int min = 99999;
-		int minIn = 999999;
+		int min = INT_MAX;
+		int minIn = INT_MAX;
 		for (int b = i; b < queueSize; ++b)
 		{
-			if (((*Queue[b]).burst[(*Queue[b]).procNum]) < min)
+			if (((*Queue[b]).tau) < min)
 			{
-				min = (*Queue[b]).burst[(*Queue[b]).procNum];
+				min = (*Queue[b]).tau;
 				minIn = b;
 			}
 		}
@@ -283,41 +283,169 @@ void sortQueueSJF(queue_item** Queue, int queueSize){
 	}
 }
 
-void sjf(int*** data, double conSwitch, double alphC, int simN){
-	double total = ceil(1/alphC);
-	double processes = 1;
-	int tau = avg(total, processes);
+void sortIO(queue_item** Queue, int queueSize){
+	queue_item* temp;
+	queue_item* temp2;
+	for (int i = 0; i < queueSize; ++i)
+	{
+		int min = INT_MAX;
+		int minIn = INT_MAX;
+		for (int b = i; b < queueSize; ++b)
+		{
+			if (((*Queue[b]).ioEndTime) < min)
+			{
+				min = (*Queue[b]).ioEndTime;
+				minIn = b;
+			}
+		}
+		temp = Queue[minIn];
+		temp2 = Queue[i];
+		Queue[minIn] = temp2;
+		Queue[i] = temp;
+	}
+}
 
+void popFront(queue_item** Queue, int* queueSize){
+	for (int i = 1; i < *queueSize; ++i)
+	{
+		Queue[i-1] = Queue[i];
+		Queue[i] = NULL;
+	}
+	*queueSize -= 1;
+}
+
+
+void sjf(int*** data, double conSwitch, double lambda, double alphC, int simN){
+	int tau = ceil(1/lambda);
 	int time = 0;
 	int queueSize = 0;
 	int hiddenQueueIndex = 0;
+	int IOSize = 0;
+	int IOIndex = 0;
+	int burstSize = 0;
+
+	int contextSwitch = 0;
 
 	queue_item** Queue = calloc(simN, sizeof(queue_item));
-	
-	queue_item** hiddenQueue = createQueue(data, simN);
+	queue_item** IO = calloc(simN, sizeof(queue_item));
+	queue_item** burst = calloc(1, sizeof(queue_item));
+
+
+	queue_item** hiddenQueue = createQueue(data, simN, tau);
+
+	queue_item* onDeck = NULL;
 	
 	sortbyArrival(hiddenQueue, simN);
 
 	printf("time %dms: Simulator started for SJF [Q empty]\n", time);
 
 	while(1){
-		if (hiddenQueueIndex < simN && (*hiddenQueue[hiddenQueueIndex]).arrivalTime == time)
-		{
-			//ADD CASE OF MULTIPLE ADDS SAME TIME
-			addToQueue(Queue, hiddenQueue[hiddenQueueIndex], &queueSize);
-			sortQueueSJF(Queue, queueSize);
-			printf("time %dms: Process %c arrived; added to ready queue [Q", time, getProcessName((*hiddenQueue[hiddenQueueIndex]).ID));
-			printQueue(Queue, queueSize);
-			hiddenQueueIndex +=1;
-		}
-		time+= 1;
-		if(time == 999){
+		if(hiddenQueueIndex == simN && IOSize == 0 && burstSize == 0 && queueSize == 0 && contextSwitch == 0){
+			printf("time %dms: Simulator ended for SJF [Q empty]", time);
 			break;
 		}
+		//End Burst
+		if(burstSize != 0 && (*burst[0]).burstEndTime == time){
+			//terminate burst
+			if ((*burst[0]).procNum == ((*burst[0]).burstN - 1))
+			{
+				printf("time %dms: Process %c terminated [Q", time, getProcessName((*burst[0]).ID));
+				printQueue(Queue, queueSize);
+				contextSwitch += conSwitch/2;
+			}
+			//completed burst
+			else{
+				(*burst[0]).procNum += 1;
+				contextSwitch += conSwitch/2;
+				(*burst[0]).ioEndTime = time + (*burst[0]).IO[(*burst[0]).IONum];
+				int tempPre = (*burst[0]).tau;
+				(*burst[0]).tau = computeTau(tempPre, (*burst[0]).prevActual, alphC);
+
+				addToQueue(IO, burst[0], &IOSize);
+				sortIO(IO, IOSize);
+				if (time < 1000)
+				{
+					printf("time %dms: Process %c (tau %dms) completed a CPU burst; %d bursts to go [Q", time, getProcessName((*burst[0]).ID), (*burst[0]).tau, (((*burst[0]).burstN) - (*burst[0]).procNum));
+					printQueue(Queue, queueSize);
+
+					printf("time %dms: Recalculated tau from %d to %dms for process %c [Q", time, tempPre, tau, getProcessName(getProcessName((*burst[0]).ID)));
+					printQueue(Queue, queueSize);
+					
+					printf("time %dms: Process %c switching out of CPU; will block on I/O until time %dms [Q", time, getProcessName((*burst[0]).ID), (*burst[0]).ioEndTime);
+					printQueue(Queue, queueSize);
+				}
+			}
+			burst[0] = NULL;
+			burstSize = 0;
+		}
+
+		//io
+		int count = 0;
+		while(IOSize > 0 && IOIndex < IOSize && (*IO[IOIndex]).ioEndTime == time){
+			count+= 1;
+			addToQueue(Queue, IO[IOIndex], &queueSize);
+			sortQueueSJF(Queue, queueSize);
+			(*IO[IOIndex]).IONum += 1;
+			if (time < 1000)
+			{
+				printf("time %dms: Process %c (tau %dms) completed I/O; added to ready queue [Q", time, getProcessName((*IO[IOIndex]).ID), (*IO[IOIndex]).tau);
+				printQueue(Queue, queueSize);
+			}
+			IOIndex += 1;
+		}
+		IOIndex = 0;
+		for (int i = 0; i < count; ++i)
+		{
+			popFront(IO, &IOSize);
+		}
+
+		//add process queue
+		while(hiddenQueueIndex < simN && (*hiddenQueue[hiddenQueueIndex]).arrivalTime == time)
+		{
+			addToQueue(Queue, hiddenQueue[hiddenQueueIndex], &queueSize);
+			sortQueueSJF(Queue, queueSize);
+			if (time < 1000)
+			{
+				printf("time %dms: Process %c (tau %dms) arrived; added to ready queue [Q", time, getProcessName((*hiddenQueue[hiddenQueueIndex]).ID), (*hiddenQueue[hiddenQueueIndex]).tau);
+				printQueue(Queue, queueSize);
+			}
+
+			hiddenQueueIndex +=1;
+		}
+
+		//printf("%d, %p, %d\n", burstSize, onDeck, queueSize);
+		if (burstSize == 0 && !onDeck && queueSize > 0)
+		{
+			contextSwitch += 2;
+			onDeck = Queue[0];
+		}
+
+		if (onDeck && contextSwitch == 0)
+		{
+			burstSize = 1;
+			burst[0] = onDeck;
+			onDeck = NULL;
+			(*burst[0]).burstEndTime = time + (*burst[0]).burst[(*burst[0]).procNum];
+			(*burst[0]).prevActual = (*burst[0]).burst[(*burst[0]).procNum];
+			popFront(Queue, &queueSize);
+			if (time < 1000)
+			{
+				printf("time %dms: Process %c (tau %dms) started using the CPU for %dms burst [Q", time, getProcessName((*burst[0]).ID), (*burst[0]).tau, (*burst[0]).burst[(*burst[0]).procNum]);
+				printQueue(Queue, queueSize);
+			}
+		}
+		time+= 1;
+		if (contextSwitch !=0)
+		{
+			contextSwitch -= 1;
+		}
+		
 	}
 
 	freeQueue(hiddenQueue, simN);
 	free(Queue);
+	free(IO);
+	free(burst);
 }
 
 
@@ -351,7 +479,8 @@ int main(int argc, char * argv[]){
 	srand48(seedR);
 	//SJF;
 	int*** SJFD = next_exp(lambda, simN, threshED);
-	sjf(SJFD, conSwitch, alphC, simN);
+	printData(SJFD, simN);
+	sjf(SJFD, conSwitch, lambda, alphC, simN);
 	freeData(SJFD, simN);
 	
 
