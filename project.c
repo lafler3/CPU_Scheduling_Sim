@@ -9,6 +9,7 @@
 #include <sys/types.h>
 #include <sys/wait.h>
 #include <sys/stat.h>
+//Current Version
 
 typedef struct{
 	int wait;
@@ -26,6 +27,17 @@ typedef struct{
 	int suspended;
 }
 queue_item;
+
+
+int next_exps(double lambda, int threshED){
+	int aT = threshED+1;
+	while(aT > threshED){
+		double r = drand48();
+		aT=floor(-log(r)/lambda);
+	}
+	return aT;
+}
+
 
 int *** next_exp(double lambda, int simN, int threshED){
 	int*** data = calloc(simN, sizeof(int**));
@@ -47,10 +59,10 @@ int *** next_exp(double lambda, int simN, int threshED){
 		int iTr = 0;
 		for(int j = 0; j<(burstN+burstN-1); j++){
 				if(j%2 == 0){
-					*(tCPU + cTr) = ceil(drand48()*100);
+					*(tCPU + cTr) = (next_exps(lambda, threshED)+1);
 					cTr++;
 				}else{
-					*(tIO + iTr) = ceil(drand48()*100*10);
+					*(tIO + iTr) = (next_exps(lambda, threshED)*10)+12;
 					iTr++;
 				}
 		}
@@ -258,33 +270,25 @@ int main(int argc, char * argv[]){
 	double alphC = strtod(argv[6], NULL);
 	int timeSlice = atoi(argv[7]);
 
-	printf("%i\n", simN);
-	printf("%i\n", seedR);
-	printf("%f\n", lambda);
-	printf("%i\n", threshED);
-	printf("%i\n", conSwitch);
-	printf("%f\n", alphC);
-	printf("%i\n", timeSlice);
-
-	srand(seedR);
+	srand48(seedR);
 	//FCFS
 	int*** FCFSD = next_exp(lambda, simN, threshED);
 	printHeader(FCFSD, simN, lambda);
 	
 	freeData(FCFSD, simN);
-	srand(seedR);
+	srand48(seedR);
 	//SJF;
 	int*** SJFD = next_exp(lambda, simN, threshED);
 	sjf(SJFD, conSwitch, alphC, simN);
 	freeData(SJFD, simN);
 	
 
-	srand(seedR);
+	srand48(seedR);
 	//SRT;
 	int*** SRTD = next_exp(lambda, simN, threshED);
 	freeData(SRTD, simN);
 
-	srand(seedR);
+	srand48(seedR);
 	//RR;
 	int*** RRD = next_exp(lambda, simN, threshED);
 	freeData(RRD, simN);
