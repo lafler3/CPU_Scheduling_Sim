@@ -511,6 +511,129 @@ void sjf(int*** data, double conSwitch, double lambda, double alphC, int simN){
 	free(burst);
 }
 
+int get_smallest_arrival(int*** data, int simN, int* KillT, int KillL){
+	int beI = -1;
+	int best = data[0][0][0];
+	for(int i = 0; i< simN; i++){
+		int inK = 0;
+		for(int j = 0; j<KillL; j++){
+			if(KillT[j] == i){
+				inK = 1;
+			}
+		}
+		if(data[i][0][0] < best && inK == 0){
+			best = data[i][0][0];
+			beI = i;
+		}
+	}
+	return beI;
+}
+
+
+void rr(int*** data, int simN, int timeSlice, int RRC){
+	/*
+		while que is not empty and there are no processes
+		if que is not empty and there is no activity, 
+		run a process (the first)
+
+	*/
+	if(RRC == 1){
+		printf("time 0ms: Simulator started for RR [Q empty]\n");
+	}else{
+		printf("time 0ms: Simulator started for FCFS [Q empty]\n");
+	}
+	if(simN == 0){
+		exit(EXIT_SUCCESS);
+	}
+	char* Queue = calloc(simN, sizeof(char));
+	int* pQueue = calloc(simN, sizeof(int)); 
+	int* KillL = calloc(simN, sizeof(int));
+	int qT = 0;
+	int killT = 0;
+	int Crunning = 0;
+	int Ccount = 0;
+	int time = 0;
+	int CurrentP = -1;
+
+	int* IOn = calloc(simN, sizeof(int));
+	int* IOv = calloc(simN, sizeof(int));
+	for(int i = 0; i<simN; i++){
+		*(IOn+i) = 0;
+	}
+//make 2 arrays for io - one to track if on, another to check time
+//when a context switch happens, the time left is stored at data[i][0][3]
+//then return to back of line. make sure to check that variable
+	while(qT != 0 || killT != simN || Crunning == 1){
+		int smallAr = get_smallest_arrival(data, simN, killT, KillL);
+		char fP = getProcessName(smallAr);
+		if(time == data[smallAr][0][0]){
+			*(KillL + killT) = smallAr;
+			killT++;
+			*(Queue + qT)  = fP;
+			*(pQueue + qT)  = smallAr;
+			qT++;
+			printf("time %dms: Process %c arrived; added to ready queue [Q %s]\n", time, fP, Queue);
+		}
+
+		//checking io
+		for(int i = 0; i<simN; i++){
+			if((IOv[i]) == time && IOn[i] == 1){
+				*(Queue + qT) = getProcessName(i);
+				*(pQueue + qT) = i;
+				qT++;
+				printf("time %dms: Process %c completed I/O; added to ready queue [Q %s]\n", time, getProcessName(i), Queue);
+				*(IOn + i) = 0;
+			}
+		}
+
+		if(Crunning == 0 && qT != 0){
+			Ccount = time;
+			//make an exception for emptying que
+			char hold = Queue[0];
+			int holdP = pQueue[0];
+			qT--;
+			for(int j = 0; j<qT; j++){
+				*(Queue + j) = *(Queue + (j+1));
+				*(pQueue + j) = *(pQueue + (j+1));
+			}
+			*(Queue + (qT+1)) = '\0';
+			if(qT == 0){
+				printf("time %dms: Process %c started using the CPU for %dms burst [Q empty]\n", time, hold, data[holdP][1][data[holdP][0][2]]);
+			}else{
+				printf("time %dms: Process %c started using the CPU for %dms burst [Q %s]\n", time, hold, data[holdP][1][data[holdP][0][2]], Queue);
+			}
+			Ccount = Ccount + data[holdP][0][1];
+			CurrentP = holdP;
+			Crunning = 1;
+
+			int** tt1 = data[holdP];
+			int* tt2 = tt1[0];
+			*(tt2 + 2) = *(tt2 + 2) + 1;
+
+		}
+		if(Crunning == 1 && time == Ccount){
+			//exception for empty que
+
+
+			if(qT == 0){
+				printf("time %dms: Process %c completed a CPU burst; %d bursts to go [Q empty]\n", time, getProcessName(CurrentP), (data[CurrentP][0][1]-data[CurrentP][0][2]));
+			}else{
+				printf("time %dms: Process %c completed a CPU burst; %d bursts to go [Q %s]\n", time, getProcessName(CurrentP), (data[CurrentP][0][1]-data[CurrentP][0][2]), Queue);
+			}
+			//start IO
+			Ccount = 0;
+			Crunning = 0;
+
+			if((data[CurrentP][0][1]-data[CurrentP][0][2]) != 1){
+				*(IOn + CurrentP) = 1;
+				*(IOv + CurrentP) =  data[CurrentP][2][data[CurrentP][0][2]] + time;
+				printf("time %dms: Process %c switching out of CPU; will block on I/O until time %dms [Q %s]\n", time, Queue[CurrentP], IOv[CurrentP], Queue);
+			}
+		}
+		time++;
+	}
+}
+
 
 
 
@@ -537,6 +660,7 @@ int main(int argc, char * argv[]){
 	//FCFS
 	int*** FCFSD = next_exp(lambda, simN, threshED);
 	printHeader(FCFSD, simN, lambda);
+
 	
 	freeData(FCFSD, simN);
 	srand48(seedR);
@@ -555,6 +679,8 @@ int main(int argc, char * argv[]){
 	//RR;
 	int*** RRD = next_exp(lambda, simN, threshED);
 	freeData(RRD, simN);
+
+	rr(FCFSD, simN, timeSlice, 0);
 
 	return 0;
 }
