@@ -187,10 +187,23 @@ void sortbyArrival(queue_item** hiddenQueue, int simN){
 		int minIn = INT_MAX;
 		for (int b = i; b < simN; ++b)
 		{
-			if ((*hiddenQueue[b]).arrivalTime < min)
+			if (((*hiddenQueue[b]).arrivalTime) <= min)
 			{
-				min = (*hiddenQueue[b]).arrivalTime;
-				minIn = b;
+				if ((*hiddenQueue[b]).arrivalTime == min)
+				{
+					if ((*hiddenQueue[b]).ID < (*hiddenQueue[minIn]).ID)
+					{
+						min = (*hiddenQueue[b]).arrivalTime;
+						minIn = b;
+					}
+					else{
+						continue;
+					}
+				}
+				else{
+					min = (*hiddenQueue[b]).arrivalTime;
+					minIn = b;
+				}
 			}
 		}
 		temp = hiddenQueue[minIn];
@@ -250,7 +263,7 @@ void printQueue(queue_item** Queue, int queueSize){
 	}
 	for (int i = 0; i < queueSize; ++i)
 	{
-		printf(" %c", getProcessName((*Queue[i]).ID));
+		printf("%c", getProcessName((*Queue[i]).ID));
 	}
 
 	printf("]\n");
@@ -270,10 +283,23 @@ void sortQueueSJF(queue_item** Queue, int queueSize){
 		int minIn = INT_MAX;
 		for (int b = i; b < queueSize; ++b)
 		{
-			if (((*Queue[b]).tau) < min)
+			if (((*Queue[b]).tau) <= min)
 			{
-				min = (*Queue[b]).tau;
-				minIn = b;
+				if ((*Queue[b]).tau == min)
+				{
+					if ((*Queue[b]).ID < (*Queue[minIn]).ID)
+					{
+						min = (*Queue[b]).tau;
+						minIn = b;
+					}
+					else{
+						continue;
+					}
+				}
+				else{
+					min = (*Queue[b]).tau;
+					minIn = b;
+				}
 			}
 		}
 		temp = Queue[minIn];
@@ -292,10 +318,23 @@ void sortIO(queue_item** Queue, int queueSize){
 		int minIn = INT_MAX;
 		for (int b = i; b < queueSize; ++b)
 		{
-			if (((*Queue[b]).ioEndTime) < min)
+			if (((*Queue[b]).ioEndTime) <= min)
 			{
-				min = (*Queue[b]).ioEndTime;
-				minIn = b;
+				if ((*Queue[b]).ioEndTime == min)
+				{
+					if ((*Queue[b]).ID < (*Queue[minIn]).ID)
+					{
+						min = (*Queue[b]).ioEndTime;
+						minIn = b;
+					}
+					else{
+						continue;
+					}
+				}
+				else{
+					min = (*Queue[b]).ioEndTime;
+					minIn = b;
+				}
 			}
 		}
 		temp = Queue[minIn];
@@ -329,27 +368,52 @@ void sjf(int*** data, double conSwitch, double lambda, double alphC, int simN){
 	queue_item** Queue = calloc(simN, sizeof(queue_item));
 	queue_item** IO = calloc(simN, sizeof(queue_item));
 	queue_item** burst = calloc(1, sizeof(queue_item));
-
+	queue_item* switching;
 
 	queue_item** hiddenQueue = createQueue(data, simN, tau);
 
-	queue_item* onDeck = NULL;
+	int onDeck = 0;
 	
 	sortbyArrival(hiddenQueue, simN);
 
 	printf("time %dms: Simulator started for SJF [Q empty]\n", time);
 
 	while(1){
-		if(hiddenQueueIndex == simN && IOSize == 0 && burstSize == 0 && queueSize == 0 && contextSwitch == 0){
+		if(hiddenQueueIndex == simN && IOSize == 0 && burstSize == 0 && queueSize == 0 && contextSwitch == 0 && onDeck == 0){
 			printf("time %dms: Simulator ended for SJF [Q empty]", time);
 			break;
 		}
+
+		if (onDeck > 0 && contextSwitch == 0)
+		{
+			if (onDeck == 1)
+			{
+				burst[0] = Queue[0];
+				popFront(Queue, &queueSize);
+			}
+			else{
+				burst[0] = switching;
+			}
+
+			burstSize = 1;
+			onDeck = 0;
+			(*burst[0]).burstEndTime = time + (*burst[0]).burst[(*burst[0]).procNum];
+			(*burst[0]).prevActual = (*burst[0]).burst[(*burst[0]).procNum];
+			
+			if (time < 1000000)
+			{
+				printf("time %dms: Process %c (tau %dms) started using the CPU for %dms burst [Q ", time, getProcessName((*burst[0]).ID), (*burst[0]).tau, (*burst[0]).burst[(*burst[0]).procNum]);
+				printQueue(Queue, queueSize);
+			}
+		}
+
+
 		//End Burst
 		if(burstSize != 0 && (*burst[0]).burstEndTime == time){
 			//terminate burst
 			if ((*burst[0]).procNum == ((*burst[0]).burstN - 1))
 			{
-				printf("time %dms: Process %c terminated [Q", time, getProcessName((*burst[0]).ID));
+				printf("time %dms: Process %c terminated [Q ", time, getProcessName((*burst[0]).ID));
 				printQueue(Queue, queueSize);
 				contextSwitch += conSwitch/2;
 			}
@@ -363,21 +427,24 @@ void sjf(int*** data, double conSwitch, double lambda, double alphC, int simN){
 
 				addToQueue(IO, burst[0], &IOSize);
 				sortIO(IO, IOSize);
-				if (time < 1000)
+				if (time < 1000000)
 				{
-					printf("time %dms: Process %c (tau %dms) completed a CPU burst; %d bursts to go [Q", time, getProcessName((*burst[0]).ID), (*burst[0]).tau, (((*burst[0]).burstN) - (*burst[0]).procNum));
+					printf("time %dms: Process %c (tau %dms) completed a CPU burst; %d bursts to go [Q ", time, getProcessName((*burst[0]).ID), tempPre, (((*burst[0]).burstN) - (*burst[0]).procNum));
 					printQueue(Queue, queueSize);
 
-					printf("time %dms: Recalculated tau from %d to %dms for process %c [Q", time, tempPre, tau, getProcessName(getProcessName((*burst[0]).ID)));
+					printf("time %dms: Recalculated tau from %d to %dms for process %c [Q ", time, tempPre, (*burst[0]).tau, getProcessName((*burst[0]).ID));
 					printQueue(Queue, queueSize);
 					
-					printf("time %dms: Process %c switching out of CPU; will block on I/O until time %dms [Q", time, getProcessName((*burst[0]).ID), (*burst[0]).ioEndTime);
+					printf("time %dms: Process %c switching out of CPU; will block on I/O until time %dms [Q ", time, getProcessName((*burst[0]).ID), (*burst[0]).ioEndTime);
 					printQueue(Queue, queueSize);
 				}
 			}
 			burst[0] = NULL;
 			burstSize = 0;
 		}
+
+
+		int presize = queueSize;
 
 		//io
 		int count = 0;
@@ -386,9 +453,9 @@ void sjf(int*** data, double conSwitch, double lambda, double alphC, int simN){
 			addToQueue(Queue, IO[IOIndex], &queueSize);
 			sortQueueSJF(Queue, queueSize);
 			(*IO[IOIndex]).IONum += 1;
-			if (time < 1000)
+			if (time < 1000000)
 			{
-				printf("time %dms: Process %c (tau %dms) completed I/O; added to ready queue [Q", time, getProcessName((*IO[IOIndex]).ID), (*IO[IOIndex]).tau);
+				printf("time %dms: Process %c (tau %dms) completed I/O; added to ready queue [Q ", time, getProcessName((*IO[IOIndex]).ID), (*IO[IOIndex]).tau);
 				printQueue(Queue, queueSize);
 			}
 			IOIndex += 1;
@@ -398,15 +465,15 @@ void sjf(int*** data, double conSwitch, double lambda, double alphC, int simN){
 		{
 			popFront(IO, &IOSize);
 		}
-
+		
 		//add process queue
 		while(hiddenQueueIndex < simN && (*hiddenQueue[hiddenQueueIndex]).arrivalTime == time)
 		{
 			addToQueue(Queue, hiddenQueue[hiddenQueueIndex], &queueSize);
 			sortQueueSJF(Queue, queueSize);
-			if (time < 1000)
+			if (time < 1000000)
 			{
-				printf("time %dms: Process %c (tau %dms) arrived; added to ready queue [Q", time, getProcessName((*hiddenQueue[hiddenQueueIndex]).ID), (*hiddenQueue[hiddenQueueIndex]).tau);
+				printf("time %dms: Process %c (tau %dms) arrived; added to ready queue [Q ", time, getProcessName((*hiddenQueue[hiddenQueueIndex]).ID), (*hiddenQueue[hiddenQueueIndex]).tau);
 				printQueue(Queue, queueSize);
 			}
 
@@ -414,26 +481,22 @@ void sjf(int*** data, double conSwitch, double lambda, double alphC, int simN){
 		}
 
 		//printf("%d, %p, %d\n", burstSize, onDeck, queueSize);
+
 		if (burstSize == 0 && !onDeck && queueSize > 0)
 		{
 			contextSwitch += 2;
-			onDeck = Queue[0];
-		}
-
-		if (onDeck && contextSwitch == 0)
-		{
-			burstSize = 1;
-			burst[0] = onDeck;
-			onDeck = NULL;
-			(*burst[0]).burstEndTime = time + (*burst[0]).burst[(*burst[0]).procNum];
-			(*burst[0]).prevActual = (*burst[0]).burst[(*burst[0]).procNum];
-			popFront(Queue, &queueSize);
-			if (time < 1000)
+			
+			if (presize == 0)
 			{
-				printf("time %dms: Process %c (tau %dms) started using the CPU for %dms burst [Q", time, getProcessName((*burst[0]).ID), (*burst[0]).tau, (*burst[0]).burst[(*burst[0]).procNum]);
-				printQueue(Queue, queueSize);
+				onDeck = 2;
+				switching = Queue[0];
+				popFront(Queue, &queueSize);
+			}
+			else{
+				onDeck = 1;
 			}
 		}
+
 		time+= 1;
 		if (contextSwitch !=0)
 		{
@@ -479,7 +542,6 @@ int main(int argc, char * argv[]){
 	srand48(seedR);
 	//SJF;
 	int*** SJFD = next_exp(lambda, simN, threshED);
-	printData(SJFD, simN);
 	sjf(SJFD, conSwitch, lambda, alphC, simN);
 	freeData(SJFD, simN);
 	
