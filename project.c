@@ -378,7 +378,7 @@ void popFront(queue_item** Queue, int* queueSize){
 }
 
 
-void sjf(int*** data, double conSwitch, double lambda, double alphC, int simN){
+double* sjf(int*** data, double conSwitch, double lambda, double alphC, int simN){
 	int tau = ceil(1/lambda);
 	int time = 0;
 	int queueSize = 0;
@@ -386,6 +386,8 @@ void sjf(int*** data, double conSwitch, double lambda, double alphC, int simN){
 	int IOSize = 0;
 	int IOIndex = 0;
 	int burstSize = 0;
+	double contextSwitches = 0;
+	double premtions = 0;
 
 	int contextSwitch = 0;
 
@@ -415,6 +417,7 @@ void sjf(int*** data, double conSwitch, double lambda, double alphC, int simN){
 				(*Queue[0]).wait[(*Queue[0]).waitSize] = time - 2;
 				(*Queue[0]).waitSize += 1;
 				burst[0] = Queue[0];
+				contextSwitches += 1;
 				popFront(Queue, &queueSize);
 			}
 			else{
@@ -526,6 +529,7 @@ void sjf(int*** data, double conSwitch, double lambda, double alphC, int simN){
 				(*Queue[0]).wait[(*Queue[0]).waitSize] = time;
 				(*Queue[0]).waitSize += 1;
 				switching = Queue[0];
+				contextSwitches += 1;
 				popFront(Queue, &queueSize);
 			}
 			else{
@@ -542,30 +546,7 @@ void sjf(int*** data, double conSwitch, double lambda, double alphC, int simN){
 	}
 	for (int i = 0; i < simN; ++i)
 	{
-		printf("%d Arrival %d\n",i, (*hiddenQueue[i]).arrivalTimeSize );
-		int num = (*hiddenQueue[i]).arrivalTimeSize;
-		for (int b = 0; b < num; ++b)
-		{
-			printf("%d ", (*hiddenQueue[i]).arrivalTimes[b]);
-		}
-		printf("\n");
-
-		printf("Wait %d\n", (*hiddenQueue[i]).waitSize);
-		num = (*hiddenQueue[i]).waitSize;
-		for (int b = 0; b < num; ++b)
-		{
-			printf("%d ", (*hiddenQueue[i]).wait[b]);
-		}
-		printf("\n");
-
-		printf("turnaround %d\n", (*hiddenQueue[i]).turnSize);
-		num = (*hiddenQueue[i]).turnSize;
-		for (int b = 0; b < num; ++b)
-		{
-			printf("%d ", (*hiddenQueue[i]).turnaround[b]);
-		}
-		printf("\n");
-		num = (*hiddenQueue[i]).turnSize;
+		int num = (*hiddenQueue[i]).turnSize;
 		for (int b = 0; b < num; ++b)
 		{
 			(*hiddenQueue[i]).turnaround[b] = (*hiddenQueue[i]).turnaround[b] - (*hiddenQueue[i]).arrivalTimes[b];
@@ -575,6 +556,7 @@ void sjf(int*** data, double conSwitch, double lambda, double alphC, int simN){
 	int div = 0;
 	int totalTa = 0;
 	int totalW = 0;
+	int totalBurst = 0;
 	for (int i = 0; i < simN; ++i)
 	{
 		int num = (*hiddenQueue[i]).turnSize;
@@ -584,22 +566,38 @@ void sjf(int*** data, double conSwitch, double lambda, double alphC, int simN){
 		{
 			totalTa += (*hiddenQueue[i]).turnaround[b];
 			totalW += (*hiddenQueue[i]).wait[b];
+			totalBurst += (*hiddenQueue[i]).burst[b];
 		}	
 	}
 
 	double avgTurnaround = (double)totalTa/(double)div;
 	double avgWait = ((double)totalW/(double)div);
+	double avgBurst = (double)totalBurst/(double)div;
+	double cpu = 100 * ((double)totalBurst/(double)time);
 
-	printf("%f\n", avgTurnaround);
-	printf("%f\n", avgWait);
-
+	double * ret = calloc(6, sizeof(double));
+	ret[0] = avgBurst;
+	ret[1] = avgWait;
+	ret[2] = avgTurnaround;
+	ret[3] = contextSwitches;
+	ret[4] = premtions;
+	ret[5] = cpu;
 	freeQueue(hiddenQueue, simN);
 	free(Queue);
 	free(IO);
 	free(burst);
+
+	return ret;
 }
 
-
+void writeFile(FILE *fp, double* data){
+	fprintf(fp, "-- average CPU burst time: %.3f ms\n", data[0]);
+	fprintf(fp, "-- average wait time: %.3f ms\n", data[1]);
+	fprintf(fp, "-- average turnaround time: %.3f ms\n", data[2]);
+	fprintf(fp, "-- total number of context switches: %.0f\n", data[3]);
+	fprintf(fp, "-- total number of preemptions: %.0f\n", data[4]);
+	fprintf(fp, "-- CPU utilization: %.3f%%\n", data[5]);
+}
 
 
 /*
@@ -621,28 +619,44 @@ int main(int argc, char * argv[]){
 	double alphC = strtod(argv[6], NULL);
 	int timeSlice = atoi(argv[7]);
 
+	char* filename = malloc(11);
+	strcpy(filename, "simout.txt");	
+	FILE *fp = fopen(filename, "w");
+	free(filename);
+	double * printvals;
+
 	srand48(seedR);
+
+	fprintf(fp, "Algorithm FCFS\n");
+
 	//FCFS
 	int*** FCFSD = next_exp(lambda, simN, threshED);
 	printHeader(FCFSD, simN, lambda);
 	
 	freeData(FCFSD, simN);
+
 	srand48(seedR);
+	fprintf(fp, "Algorithm SJF\n");
 	//SJF;
 	int*** SJFD = next_exp(lambda, simN, threshED);
-	sjf(SJFD, conSwitch, lambda, alphC, simN);
+	printvals = sjf(SJFD, conSwitch, lambda, alphC, simN);
+	writeFile(fp, printvals);
+	free(printvals);
+
 	freeData(SJFD, simN);
 	
 
 	srand48(seedR);
+	fprintf(fp, "Algorithm SRT\n");
 	//SRT;
 	int*** SRTD = next_exp(lambda, simN, threshED);
 	freeData(SRTD, simN);
 
 	srand48(seedR);
+	fprintf(fp, "Algorithm RR\n");
 	//RR;
 	int*** RRD = next_exp(lambda, simN, threshED);
 	freeData(RRD, simN);
-
+	fclose(fp);
 	return 0;
 }
