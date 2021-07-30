@@ -123,6 +123,7 @@ void printData(int*** data, int simN){
 		{
 			printf(" %d\n", data[i][1][b]);
 		}
+		printf("IO\n");
 		for (int b = 0; b < num - 1; ++b)
 		{
 			printf(" %d\n", data[i][2][b]);
@@ -193,6 +194,20 @@ void sortbyArrival(queue_item** hiddenQueue, int simN){
 		hiddenQueue[i] = temp;
 	}
 }
+/*
+queue_item* copyQueueItem(queue_item* orginal){
+	queue_item* newQueue = malloc(sizeof(queue_item));
+ 	(*newQueue).procNum = 0;
+ 	(*newQueue).wait = 0;
+ 	(*newQueue).IONum = 0;
+
+	(*newQueue).ID = i;
+	(*newQueue).arrivalTime = data[i][0][0];
+	(*newQueue).burstN = data[i][0][1];
+
+	(*newQueue).burst = data[i][1];
+	(*newQueue).IO = data[i][2];
+}*/
 
 queue_item** createQueue(int*** data, int simN){
 	queue_item** hiddenQueue = calloc(simN, sizeof(queue_item*));
@@ -232,20 +247,77 @@ void printHeader(int*** data, int simN, double lambda ){
 	}
 }
 
+void printQueue(queue_item** Queue, int queueSize){
+	for (int i = 0; i < queueSize; ++i)
+	{
+		printf(" %c", getProcessName((*Queue[i]).ID));
+	}
+
+	printf("]\n");
+}
+
+void addToQueue(queue_item** Queue, queue_item* item, int* queueSize){
+	Queue[(*queueSize)] = item;
+	*queueSize += 1;
+}
+
+void sortQueueSJF(queue_item** Queue, int queueSize){
+	queue_item* temp;
+	queue_item* temp2;
+	for (int i = 0; i < queueSize; ++i)
+	{
+		int min = 99999;
+		int minIn = 999999;
+		for (int b = i; b < queueSize; ++b)
+		{
+			if (((*Queue[b]).burst[(*Queue[b]).procNum]) < min)
+			{
+				min = (*Queue[b]).burst[(*Queue[b]).procNum];
+				minIn = b;
+			}
+		}
+		temp = Queue[minIn];
+		temp2 = Queue[i];
+		Queue[minIn] = temp2;
+		Queue[i] = temp;
+	}
+}
+
 void sjf(int*** data, double conSwitch, double alphC, int simN){
 	double total = ceil(1/alphC);
 	double processes = 1;
 	int tau = avg(total, processes);
-	
-	int queueSize = 0;
-	queue_item** Queue = calloc(simN, sizeof(queue_item));
 
+	int time = 0;
+	int queueSize = 0;
+	int hiddenQueueIndex = 0;
+
+	queue_item** Queue = calloc(simN, sizeof(queue_item));
+	
 	queue_item** hiddenQueue = createQueue(data, simN);
+	
 	sortbyArrival(hiddenQueue, simN);
 
+	printf("time %dms: Simulator started for SJF [Q empty]\n", time);
+
+	while(1){
+		if (hiddenQueueIndex < simN && (*hiddenQueue[hiddenQueueIndex]).arrivalTime == time)
+		{
+			//ADD CASE OF MULTIPLE ADDS SAME TIME
+			addToQueue(Queue, hiddenQueue[hiddenQueueIndex], &queueSize);
+			sortQueueSJF(Queue, queueSize);
+			printf("time %dms: Process %c arrived; added to ready queue [Q", time, getProcessName((*hiddenQueue[hiddenQueueIndex]).ID));
+			printQueue(Queue, queueSize);
+			hiddenQueueIndex +=1;
+		}
+		time+= 1;
+		if(time == 999){
+			break;
+		}
+	}
 
 	freeQueue(hiddenQueue, simN);
-	freeQueue(Queue, simN);
+	free(Queue);
 }
 
 
