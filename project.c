@@ -701,6 +701,7 @@ double* srt(int*** data, double conSwitch, double lambda, double alphC, int simN
 				//printf("here2\n");
 				(*switching).wait[(*switching).waitSize] = time + conSwitch/2;
 				(*switching).waitSize += 1;
+				premtions += 1;
 				burst[0] = switching;
 			}
 			else{
