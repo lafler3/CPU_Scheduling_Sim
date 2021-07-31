@@ -690,7 +690,7 @@ double* srt(int*** data, double conSwitch, double lambda, double alphC, int simN
 		{
 			if (onDeck ==  1)
 			{
-				printf("here1\n");
+				//printf("here1\n");
 				(*Queue[0]).wait[(*Queue[0]).waitSize] = time + conSwitch/2;
 				(*Queue[0]).waitSize += 1;
 				burst[0] = Queue[0];
@@ -698,7 +698,7 @@ double* srt(int*** data, double conSwitch, double lambda, double alphC, int simN
 				popFront(Queue, &queueSize);
 			}
 			else if(onDeck ==  3){
-				printf("here2\n");
+				//printf("here2\n");
 				(*switching).wait[(*switching).waitSize] = time + conSwitch/2;
 				(*switching).waitSize += 1;
 				burst[0] = switching;
@@ -711,8 +711,8 @@ double* srt(int*** data, double conSwitch, double lambda, double alphC, int simN
 			onDeck = 0;
 			if ((*burst[0]).suspended != 0)
 			{
-				(*burst[0]).burstEndTime = time + (*burst[0]).suspended - conSwitch;
-				if (time < 1000000)
+				(*burst[0]).burstEndTime = time + (*burst[0]).suspended;
+				if (time < 1000)
 				{
 					printf("time %dms: Process %c (tau %dms) started using the CPU for remaining %dms of %dms burst [Q ", time, getProcessName((*burst[0]).ID), (*burst[0]).tau,(*burst[0]).suspended, (*burst[0]).burst[(*burst[0]).procNum]);
 					printQueue(Queue, queueSize);
@@ -721,7 +721,7 @@ double* srt(int*** data, double conSwitch, double lambda, double alphC, int simN
 			}
 			else{
 				(*burst[0]).burstEndTime = time + (*burst[0]).burst[(*burst[0]).procNum];
-				if (time < 1000000)
+				if (time < 1000)
 				{
 					printf("time %dms: Process %c (tau %dms) started using the CPU for %dms burst [Q ", time, getProcessName((*burst[0]).ID), (*burst[0]).tau, (*burst[0]).burst[(*burst[0]).procNum]);
 					printQueue(Queue, queueSize);
@@ -729,9 +729,6 @@ double* srt(int*** data, double conSwitch, double lambda, double alphC, int simN
 			}
 			
 			(*burst[0]).prevActual = (*burst[0]).burst[(*burst[0]).procNum];
-			
-
-
 		}
 
 
@@ -758,7 +755,7 @@ double* srt(int*** data, double conSwitch, double lambda, double alphC, int simN
 				sortIO(IO, IOSize);
 				(*burst[0]).turnaround[(*burst[0]).turnSize] = time + conSwitch/2;
 				(*burst[0]).turnSize += 1;
-				if (time < 1000000)
+				if (time < 1000)
 				{
 					printf("time %dms: Process %c (tau %dms) completed a CPU burst; %d bursts to go [Q ", time, getProcessName((*burst[0]).ID), tempPre, (((*burst[0]).burstN) - (*burst[0]).procNum));
 					printQueue(Queue, queueSize);
@@ -797,15 +794,15 @@ double* srt(int*** data, double conSwitch, double lambda, double alphC, int simN
 				if ((*burst[0]).suspended != 0)
 				{
 					compare = (*burst[0]).tau - (time - ((*burst[0]).wait[(*burst[0]).waitSize - 1] - conSwitch/2));
-					printf("sus  %d - (%d -(%d - %f)))) = %f\n",(*burst[0]).tau, time, (*burst[0]).wait[(*burst[0]).waitSize - 1], conSwitch/2,compare);
+					//printf("sus  %d - (%d -(%d - %f)))) = %f\n",(*burst[0]).tau, time, (*burst[0]).wait[(*burst[0]).waitSize - 1], conSwitch/2,compare);
 				}
 				else
 				{
 					compare = ((*burst[0]).tau - (time - ((*burst[0]).wait[(*burst[0]).waitSize - 1] - conSwitch/2))); 
-					printf("thing %d - (%d - %f ) = %f \n", (*burst[0]).tau , time, (*burst[0]).wait[(*burst[0]).waitSize - 1] - conSwitch/2, compare);
+					//printf("comp %d - (%d - %f ) = %f \n", (*burst[0]).tau , time, (*burst[0]).wait[(*burst[0]).waitSize - 1] - conSwitch/2, compare);
 				}
 				if((*IO[IOIndex]).tau < compare){
-					if (time < 1000000)
+					if (time < 1000)
 					{
 						printf("time %dms: Process %c (tau %dms) completed I/O; preempting %c [Q ", time, getProcessName((*IO[IOIndex]).ID), (*IO[IOIndex]).tau, getProcessName((*burst[0]).ID));
 						printQueue(Queue, queueSize);
@@ -815,18 +812,17 @@ double* srt(int*** data, double conSwitch, double lambda, double alphC, int simN
 					popFront(Queue, &queueSize);
 					if ((*burst[0]).suspended == 0)
 					{
-						(*burst[0]).suspended = (*burst[0]).burst[(*burst[0]).procNum] - (time - (*burst[0]).wait[(*burst[0]).waitSize - 1] - conSwitch/2);
+						(*burst[0]).suspended  =  (*burst[0]).burst[(*burst[0]).procNum] - (time - ((*burst[0]).wait[(*burst[0]).waitSize - 1] - conSwitch/2));
+						//printf("SUS %d - (%d - (%d - %f ) = %d \n", (*burst[0]).burst[(*burst[0]).procNum], time, (*burst[0]).wait[(*burst[0]).waitSize - 1], conSwitch/2, (*burst[0]).suspended );
 					}
 					else{
-						//printf("%d %f\n", (*burst[0]).suspended, (*burst[0]).wait[(*burst[0]).waitSize - 1] - conSwitch/2);
-						(*burst[0]).suspended = (*burst[0]).suspended - (time - (*burst[0]).wait[(*burst[0]).waitSize - 1] - conSwitch/2);
+						int temp = (*burst[0]).suspended;
+						//printf("%d\n", temp);
+						(*burst[0]).suspended = (*burst[0]).suspended - (time - ((*burst[0]).wait[(*burst[0]).waitSize - 1] - conSwitch/2));
+						//printf("susus %d - (%d - (%d - %f ) = %d\n", temp, time, (*burst[0]).wait[(*burst[0]).waitSize - 1], conSwitch/2, (*burst[0]).suspended);
 					}
-					
-					printf("%d\n", (*burst[0]).suspended);
 					addToQueue(Queue, burst[0], &queueSize);
-					printQueue(Queue, queueSize);
 					sortQueueSJF(Queue, queueSize);
-					printQueue(Queue, queueSize);
 					(*burst[0]).waitSize -= 1;
 					burst[0] = NULL;
 					burstSize = 0;
@@ -834,7 +830,7 @@ double* srt(int*** data, double conSwitch, double lambda, double alphC, int simN
 
 					contextSwitch += conSwitch;
 				}
-				else if (time < 1000000)
+				else if (time < 1000)
 				{
 					printf("time %dms: Process %c (tau %dms) completed I/O; added to ready queue [Q ", time, getProcessName((*IO[IOIndex]).ID), (*IO[IOIndex]).tau);
 					printQueue(Queue, queueSize);
@@ -856,7 +852,7 @@ double* srt(int*** data, double conSwitch, double lambda, double alphC, int simN
 		{
 			addToQueue(Queue, hiddenQueue[hiddenQueueIndex], &queueSize);
 			sortQueueSJF(Queue, queueSize);
-			if (time < 1000000)
+			if (time < 1000)
 			{
 				printf("time %dms: Process %c (tau %dms) arrived; added to ready queue [Q ", time, getProcessName((*hiddenQueue[hiddenQueueIndex]).ID), (*hiddenQueue[hiddenQueueIndex]).tau);
 				printQueue(Queue, queueSize);
@@ -873,7 +869,7 @@ double* srt(int*** data, double conSwitch, double lambda, double alphC, int simN
 			
 			if (presize == 0)
 			{
-				printf("here3\n");
+				//printf("here3\n");
 				onDeck = 2;
 				(*Queue[0]).wait[(*Queue[0]).waitSize] = time + conSwitch;
 				(*Queue[0]).waitSize += 1;
