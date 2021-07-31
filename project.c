@@ -933,6 +933,144 @@ double* srt(int*** data, double conSwitch, double lambda, double alphC, int simN
 	free(burst);
 
 	return ret;
+int get_smallest_arrival(int*** data, int simN, int killT, int* KillL){
+	int beI = -1;
+	int best = data[0][0][0];
+	for(int i = 0; i< simN; i++){
+		int inK = 0;
+		for(int j = 0; j<killT; j++){
+			if(KillL[j] == i){
+				inK = 1;
+			}
+		}
+		if(data[i][0][0] < best && inK == 0){
+			best = data[i][0][0];
+			beI = i;
+		}
+	}
+	return beI;
+}
+
+
+void rr(int*** data, int simN, int timeSlice, int RRC){
+	/*
+		while que is not empty and there are no processes
+		if que is not empty and there is no activity, 
+		run a process (the first)
+
+	*/
+	//check if using RR or FCFS (i just put them in the same thing - RRC indicates which)
+	if(RRC == 1){
+		printf("time 0ms: Simulator started for RR [Q empty]\n");
+	}else{
+		printf("time 0ms: Simulator started for FCFS [Q empty]\n");
+	}
+	//Kill the thing if there are no processes
+	if(simN == 0){
+		exit(EXIT_SUCCESS);
+	}
+	//Keep track of the que in letters
+	char* Queue = calloc(simN, sizeof(char));
+	//Track the que in numbers (where Queue[0] = C, pQueue[0] = 2)
+	int* pQueue = calloc(simN, sizeof(int)); 
+	//Keep track of which processes have been initialized
+	int* KillL = calloc(simN, sizeof(int));
+	//Tracks the tail of the que
+	int qT = 0;
+	//Tracks the tail of the initialized processes
+	int killT = 0;
+	//Checks to see if a cpu process is running
+	int Crunning = 0;
+	//tracks when the current CPU process is supposed to end
+	int Ccount = 0;
+	//Keeps track of time
+	int time = 0;
+	//Keeps track of current active CPU process
+	int CurrentP = -1;
+	//Keeps track of whether an IO of a certain process is active or not
+	int* IOn = calloc(simN, sizeof(int));
+	//Keeps track of the stop times of the IO's at each process index
+	int* IOv = calloc(simN, sizeof(int));
+	//Sets to 0
+	for(int i = 0; i<simN; i++){
+		*(IOn+i) = 0;
+	}
+//make 2 arrays for io - one to track if on, another to check time
+//when a context switch happens, the time left is stored at data[i][0][3]
+//then return to back of line. make sure to check that variable
+	while(qT != 0 || killT != simN || Crunning == 1){
+		//gets smallest arrival time un-added process
+		int smallAr = get_smallest_arrival(data, simN, killT, KillL);
+		//Gets the letter of that process
+		char fP = getProcessName(smallAr);
+		//Adds the lowest arrival time process when the time stamp hits.
+		if(time == data[smallAr][0][0]){
+			*(KillL + killT) = smallAr;
+			killT++;
+			*(Queue + qT)  = fP;
+			*(pQueue + qT)  = smallAr;
+			qT++;
+			printf("time %dms: Process %c arrived; added to ready queue [Q %s]\n", time, fP, Queue);
+		}
+
+		//checking io's for any completion to re-add to the que
+		for(int i = 0; i<simN; i++){
+			if((IOv[i]) == time && IOn[i] == 1){
+				*(Queue + qT) = getProcessName(i);
+				*(pQueue + qT) = i;
+				qT++;
+				printf("time %dms: Process %c completed I/O; added to ready queue [Q %s]\n", time, getProcessName(i), Queue);
+				*(IOn + i) = 0;
+			}
+		}
+
+		//Check if a process is running and if not and something is in the que, run the first process
+		if(Crunning == 0 && qT != 0){
+			Ccount = time;
+			//make an exception for emptying que
+			char hold = Queue[0];
+			int holdP = pQueue[0];
+			qT--;
+			for(int j = 0; j<qT; j++){
+				*(Queue + j) = *(Queue + (j+1));
+				*(pQueue + j) = *(pQueue + (j+1));
+			}
+			*(Queue + (qT+1)) = '\0';
+			if(qT == 0){
+				printf("time %dms: Process %c started using the CPU for %dms burst [Q empty]\n", time, hold, data[holdP][1][data[holdP][0][2]]);
+			}else{
+				printf("time %dms: Process %c started using the CPU for %dms burst [Q %s]\n", time, hold, data[holdP][1][data[holdP][0][2]], Queue);
+			}
+			Ccount = Ccount + data[holdP][0][1];
+			CurrentP = holdP;
+			Crunning = 1;
+
+			int** tt1 = data[holdP];
+			int* tt2 = tt1[0];
+			*(tt2 + 2) = *(tt2 + 2) + 1;
+
+		}
+		//If a cpu process hits its time and was running, complete process and trigger IO
+		if(Crunning == 1 && time == Ccount){
+
+			if(qT == 0){
+				printf("time %dms: Process %c completed a CPU burst; %d bursts to go [Q empty]\n", time, getProcessName(CurrentP), (data[CurrentP][0][1]-data[CurrentP][0][2]));
+			}else{
+				printf("time %dms: Process %c completed a CPU burst; %d bursts to go [Q %s]\n", time, getProcessName(CurrentP), (data[CurrentP][0][1]-data[CurrentP][0][2]), Queue);
+			}
+			//start IO
+			Ccount = 0;
+			Crunning = 0;
+
+			if((data[CurrentP][0][1]-data[CurrentP][0][2]) != 1){
+				*(IOn + CurrentP) = 1;
+				*(IOv + CurrentP) =  data[CurrentP][2][data[CurrentP][0][2]] + time;
+				printf("time %dms: Process %c switching out of CPU; will block on I/O until time %dms [Q %s]\n", time, Queue[CurrentP], IOv[CurrentP], Queue);
+			}
+		}
+		time++;
+	}
+>>>>>>> 3e85bc7be5ce1b2b1b3446d65eda286ef68a0827
 }
 
 
@@ -978,6 +1116,8 @@ int main(int argc, char * argv[]){
 	//FCFS
 	int*** FCFSD = next_exp(lambda, simN, threshED);
 	printHeader(FCFSD, simN, lambda);
+	rr(FCFSD, simN, timeSlice, 0);
+
 	
 	freeData(FCFSD, simN);
 
@@ -1008,5 +1148,6 @@ int main(int argc, char * argv[]){
 	int*** RRD = next_exp(lambda, simN, threshED);
 	freeData(RRD, simN);
 	fclose(fp);
+
 	return 0;
 }
