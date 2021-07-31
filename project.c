@@ -708,7 +708,7 @@ double* srt(int*** data, double conSwitch, double lambda, double alphC, int simN
 			onDeck = 0;
 			if ((*burst[0]).suspended != 0)
 			{
-				(*burst[0]).burstEndTime = time + (*burst[0]).suspended;
+				(*burst[0]).burstEndTime = time + (*burst[0]).suspended - conSwitch;
 				if (time < 1000000)
 				{
 					printf("time %dms: Process %c (tau %dms) started using the CPU for remaining %dms of %dms burst [Q ", time, getProcessName((*burst[0]).ID), (*burst[0]).tau,(*burst[0]).suspended, (*burst[0]).burst[(*burst[0]).procNum]);
@@ -791,16 +791,16 @@ double* srt(int*** data, double conSwitch, double lambda, double alphC, int simN
 			if (burstSize != 0 && onDeck == 0)
 			{
 				double compare;
-				if ((*burst[0]).suspended != 0)
-				{
-					compare = (*burst[0]).tau - (((*burst[0]).burst[(*burst[0]).procNum] - ((*burst[0]).suspended - (time - (*burst[0]).wait[(*burst[0]).waitSize - 1] - conSwitch/2))));
-					printf("sus %f %f %d\n", compare, (*burst[0]).suspended - (time - (*burst[0]).wait[(*burst[0]).waitSize - 1] - conSwitch/2), (*burst[0]).burst[(*burst[0]).procNum]);
-				}
+				//if ((*burst[0]).suspended != 0)
+				//{
+				//	compare = (*burst[0]).tau - ((*burst[0]).burst[(*burst[0]).procNum] - ((*burst[0]).suspended - (time - ((*burst[0]).wait[(*burst[0]).waitSize - 1] - conSwitch/2))));
+				//	printf("sus %d - (%d - (%d - (%d -(%d - %f)))) = %f\n",(*burst[0]).tau, (*burst[0]).burst[(*burst[0]).procNum], (*burst[0]).suspended, time, (*burst[0]).wait[(*burst[0]).waitSize - 1], conSwitch/2,compare);
+				//}
 
-				else{
+				//else{
 					compare = ((*burst[0]).tau - (time - ((*burst[0]).wait[(*burst[0]).waitSize - 1] - conSwitch/2))); 
 					printf("thing %d - (%d - %f ) = %f \n", (*burst[0]).tau , time, (*burst[0]).wait[(*burst[0]).waitSize - 1] - conSwitch/2, compare);
-				}
+				//}
 				if((*IO[IOIndex]).tau < compare){
 					if (time < 1000000)
 					{
