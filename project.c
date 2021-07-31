@@ -690,6 +690,7 @@ double* srt(int*** data, double conSwitch, double lambda, double alphC, int simN
 		{
 			if (onDeck ==  1)
 			{
+				printf("here1\n");
 				(*Queue[0]).wait[(*Queue[0]).waitSize] = time + conSwitch/2;
 				(*Queue[0]).waitSize += 1;
 				burst[0] = Queue[0];
@@ -697,7 +698,8 @@ double* srt(int*** data, double conSwitch, double lambda, double alphC, int simN
 				popFront(Queue, &queueSize);
 			}
 			else if(onDeck ==  3){
-				(*switching).wait[(*switching).waitSize] = time - conSwitch;
+				printf("here2\n");
+				(*switching).wait[(*switching).waitSize] = time + conSwitch/2;
 				(*switching).waitSize += 1;
 				burst[0] = switching;
 			}
@@ -792,16 +794,16 @@ double* srt(int*** data, double conSwitch, double lambda, double alphC, int simN
 			if (burstSize != 0 && onDeck == 0)
 			{
 				double compare;
-				//if ((*burst[0]).suspended != 0)
-				//{
-				//	compare = (*burst[0]).tau - ((*burst[0]).burst[(*burst[0]).procNum] - ((*burst[0]).suspended - (time - ((*burst[0]).wait[(*burst[0]).waitSize - 1] - conSwitch/2))));
-				//	printf("sus %d - (%d - (%d - (%d -(%d - %f)))) = %f\n",(*burst[0]).tau, (*burst[0]).burst[(*burst[0]).procNum], (*burst[0]).suspended, time, (*burst[0]).wait[(*burst[0]).waitSize - 1], conSwitch/2,compare);
-				//}
-
-				//else{
+				if ((*burst[0]).suspended != 0)
+				{
+					compare = (*burst[0]).tau - (time - ((*burst[0]).wait[(*burst[0]).waitSize - 1] - conSwitch/2));
+					printf("sus  %d - (%d -(%d - %f)))) = %f\n",(*burst[0]).tau, time, (*burst[0]).wait[(*burst[0]).waitSize - 1], conSwitch/2,compare);
+				}
+				else
+				{
 					compare = ((*burst[0]).tau - (time - ((*burst[0]).wait[(*burst[0]).waitSize - 1] - conSwitch/2))); 
 					printf("thing %d - (%d - %f ) = %f \n", (*burst[0]).tau , time, (*burst[0]).wait[(*burst[0]).waitSize - 1] - conSwitch/2, compare);
-				//}
+				}
 				if((*IO[IOIndex]).tau < compare){
 					if (time < 1000000)
 					{
@@ -871,8 +873,9 @@ double* srt(int*** data, double conSwitch, double lambda, double alphC, int simN
 			
 			if (presize == 0)
 			{
+				printf("here3\n");
 				onDeck = 2;
-				(*Queue[0]).wait[(*Queue[0]).waitSize] = time - conSwitch;
+				(*Queue[0]).wait[(*Queue[0]).waitSize] = time + conSwitch;
 				(*Queue[0]).waitSize += 1;
 				switching = Queue[0];
 				contextSwitches += 1;
@@ -1073,7 +1076,6 @@ void rr(int*** data, int simN, int timeSlice, int RRC){
 		}
 		time++;
 	}
->>>>>>> 3e85bc7be5ce1b2b1b3446d65eda286ef68a0827
 }
 
 
@@ -1119,7 +1121,7 @@ int main(int argc, char * argv[]){
 	//FCFS
 	int*** FCFSD = next_exp(lambda, simN, threshED);
 	printHeader(FCFSD, simN, lambda);
-	rr(FCFSD, simN, timeSlice, 0);
+	//rr(FCFSD, simN, timeSlice, 0);
 
 	
 	freeData(FCFSD, simN);
