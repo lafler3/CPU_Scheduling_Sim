@@ -591,6 +591,7 @@ double* sjf(int*** data, double conSwitch, double lambda, double alphC, int simN
 	return ret;
 }
 
+
 void sortQueueSRT(queue_item** Queue, int queueSize){
 	queue_item* temp;
 	queue_item* temp2;
@@ -933,6 +934,8 @@ double* srt(int*** data, double conSwitch, double lambda, double alphC, int simN
 	free(burst);
 
 	return ret;
+}
+
 int get_smallest_arrival(int*** data, int simN, int killT, int* KillL){
 	int beI = -1;
 	int best = data[0][0][0];
