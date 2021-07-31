@@ -590,13 +590,13 @@ double* sjf(int*** data, double conSwitch, double lambda, double alphC, int simN
 	return ret;
 }
 
-int get_smallest_arrival(int*** data, int simN, int* KillT, int KillL){
+int get_smallest_arrival(int*** data, int simN, int killT, int* KillL){
 	int beI = -1;
 	int best = data[0][0][0];
 	for(int i = 0; i< simN; i++){
 		int inK = 0;
-		for(int j = 0; j<KillL; j++){
-			if(KillT[j] == i){
+		for(int j = 0; j<killT; j++){
+			if(KillL[j] == i){
 				inK = 1;
 			}
 		}
